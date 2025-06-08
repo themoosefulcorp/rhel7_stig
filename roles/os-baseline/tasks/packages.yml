@@ -1,0 +1,20 @@
+---
+# RHEL-07-020000
+- name: The Red Hat Enterprise Linux operating system must not have the rsh-server package installed
+  ansible.builtin.package:
+    name: rsh-server
+    state: absent
+  when: manage_204442 | bool
+
+# RHEL-07-020010
+- name: The Red Hat Enterprise Linux operating system must not have the ypserv package installed
+  ansible.builtin.package:
+    name: ypserv
+    state: absent
+  when: manage_204443 | bool
+
+- name: Update package facts
+  ansible.builtin.package_facts:
+    manager: auto
+  changed_when: false
+...

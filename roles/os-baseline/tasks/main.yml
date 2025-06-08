@@ -1,0 +1,257 @@
+---
+- name: Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Gather minimum required facts
+  ansible.builtin.setup:
+    gather_subset:
+      - '!all'
+      - distribution
+      - distribution_major_version
+      - distribution_version
+  when:
+    - ansible_facts.distribution is not defined
+      or ansible_facts.distribution_major_version is not defined
+      or ansible_facts.distribution_version is not defined
+
+- name: Assert that the current OS is RHEL 7
+  ansible.builtin.assert:
+    that:
+      - "ansible_facts.distribution is match('RedHat')"
+      - "ansible_facts.distribution_major_version == '7'"
+    fail_msg: "You're in for a bad time if you try to run this on something other than RHEL 7"
+
+- name: Check if system uses UEFI or BIOS
+  ansible.builtin.stat:
+    path: /sys/firmware/efi
+  register: __stat_sys_firmware_efi
+
+- name: Add and remove packages as required by STIGs
+  ansible.builtin.include_tasks:
+    file: packages.yml
+
+- name: STIG GDM if installed
+  ansible.builtin.include_role:
+    name: gdm
+  when: "'gdm' in ansible_facts.packages"
+  tags: gdm
+
+# this definitely needs more testing before it's ready for production
+# - name: Configure authconfig
+#   ansible.builtin.include_role:
+#     name: authconfig
+#   tags: authconfig, pam
+
+- name: Configure pwquality.conf
+  ansible.builtin.include_role:
+    name: pwquality
+  tags: pwquality
+
+- name: Configure SSH
+  ansible.builtin.include_role:
+    name: ssh
+  tags: ssh
+
+- name: Configure sudoers files
+  ansible.builtin.include_role:
+    name: sudoers
+  tags: sudoers
+
+- name: Configure YUM
+  ansible.builtin.include_role:
+    name: yum
+  tags: yum
+
+- name: Configure modprobe
+  ansible.builtin.include_role:
+    name: modprobe
+  tags: modprobe
+
+# RHEL-07-010050
+- name: The Red Hat Enterprise Linux operating system must display the Standard Mandatory DoD Notice and Consent Banner before granting local or remote access to the system via a command line user logon
+  ansible.builtin.copy:
+    dest: /etc/issue
+    content: >
+      You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only.
+      By using this IS (which includes any device attached to this IS), you consent to the following conditions:
+       - The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to, penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE), and counterintelligence (CI) investigations.
+       - At any time, the USG may inspect and seize data stored on this IS.
+       - Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception, and search, and may be disclosed or used for any USG-authorized purpose.
+       - This IS includes security measures (e.g., authentication and access controls) to protect USG interests -- not for your personal benefit or privacy.
+       - Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants.  Such communications and work product are private and confidential.  See User Agreement for details.
+  when: manage_204395 | bool
+
+# RHEL-07-010210
+- name: The Red Hat Enterprise Linux operating system must be configured to use the shadow file to store only encrypted representations of passwords
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '(?i)^[#\s]*ENCRYPT_METHOD'
+    line: 'ENCRYPT_METHOD SHA512'
+    state: present
+  when: manage_204416 | bool
+
+# RHEL-07-010220
+- name: The Red Hat Enterprise Linux operating system must be configured so that user and group account administration utilities are configured to store only encrypted representations of passwords
+  community.general.ini_file:
+    path: /etc/libuser.conf
+    section: defaults
+    option: crypt_style
+    value: sha512
+    state: present
+  when: manage_204417 | bool
+
+# RHEL-07-010230
+- name: The Red Hat Enterprise Linux operating system must be configured so that passwords for new users are restricted to a 24 hours/1 day minimum lifetime
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '(?i)^[#\s]*PASS_MIN_DAYS'
+    line: 'PASS_MIN_DAYS 1'
+    state: present
+  when: manage_204418 | bool
+
+# RHEL-07-010240
+- name: The Red Hat Enterprise Linux operating system must be configured so that passwords are restricted to a 24 hours/1 day minimum lifetime
+  block:
+  - name: Get contents of /etc/shadow
+    ansible.builtin.getent:
+      database: shadow
+      split: ':'
+    when: ansible_facts.getent_shadow is not defined
+  - name: Set minimum password age on non-compliant accounts
+    ansible.builtin.user:
+      name: "{{ item.key }}"
+      password_expire_min: 1
+    loop: "{{ ansible_facts.getent_shadow | dict2items }}"
+    loop_control:
+      label: "{{ item.key }}, password_expire_min={{ item.value[2] }}"
+    when:
+      - item.value[0] is not match('^!!')
+      - item.value[0] is not match('^\*')
+      - item.value[2] | length == 0
+        or item.value[2] | int < 1
+  when: manage_204419 | bool
+
+# RHEL-07-010250
+- name: The Red Hat Enterprise Linux operating system must be configured so that passwords for new users are restricted to a 60-day maximum lifetime
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '(?i)^[#\s]*PASS_MAX_DAYS'
+    line: 'PASS_MAX_DAYS 60'
+    state: present
+  when: manage_204420 | bool
+
+# RHEL-07-010260
+- name: The Red Hat Enterprise Linux operating system must be configured so that existing passwords are restricted to a 60-day maximum lifetime
+  block:
+  - name: Get contents of /etc/shadow
+    ansible.builtin.getent:
+      database: shadow
+      split: ':'
+    when: ansible_facts.getent_shadow is not defined
+  - name: Set maximum password age on non-compliant accounts
+    ansible.builtin.user:
+      name: "{{ item.key }}"
+      password_expire_max: 60
+    loop: "{{ ansible_facts.getent_shadow | dict2items }}"
+    loop_control:
+      label: "{{ item.key }}, password_expire_max={{ item.value[3] }}"
+    when:
+      - item.value[0] is not match('^!!')
+      - item.value[0] is not match('^\*')
+      - item.value[3] | length == 0
+        or item.value[3] | int > 60
+  when: manage_204421 | bool
+
+# RHEL-07-010310
+- name: The Red Hat Enterprise Linux operating system must disable account identifiers (individuals, groups, roles, and devices) if the password expires
+  ansible.builtin.lineinfile:
+    path: /etc/default/useradd
+    regexp: '(?i)[#\s]*INACTIVE'
+    line: 'INACTIVE=35'
+    state: present
+  when: manage_204426 | bool
+
+# RHEL-07-010430
+- name: The Red Hat Enterprise Linux operating system must be configured so that the delay between logon prompts following a failed console logon attempt is at least four seconds
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '(?i)^[#\s]*FAIL_DELAY'
+    line: 'FAIL_DELAY 4'
+    state: present
+  when: manage_204431 | bool
+
+# RHEL-07-010481
+- name: The Red Hat Enterprise Linux operating system must require authentication upon booting into single-user and maintenance modes
+  community.general.ini_file:
+    path: /usr/lib/systemd/system/rescue.service
+    section: Service
+    option: ExecStart
+    value: '-/bin/sh -c "/usr/sbin/sulogin; /usr/bin/systemctl --fail --no-block default'
+    no_extra_spaces: true
+    state: present
+  when: manage_204437 | bool
+  notify: systemctl_daemon_reload
+
+# RHEL-07-010482
+- name: Red Hat Enterprise Linux operating systems version 7.2 or newer with a Basic Input/Output System (BIOS) must require authentication upon booting into single-user and maintenance modes
+  block:
+  - name: Check if the grub superusers password is encrypted and set
+    ansible.builtin.find:
+      paths: /boot/grub2/
+      patterns: user.cfg
+      contains: '(?i)GRUB2_PASSWORD=grub\.pbkdf2\.sha512\.'
+    register: __found_bios_grub_password
+  - name: Set an encrypted grub superuser password
+    ansible.builtin.expect:
+      command: grub2-setpassword
+      responses:
+        "Enter password:":
+          - "{{ baseline_grub_superuser_password }}"
+        "Confirm password:":
+          - "{{ baseline_grub_superuser_password }}"
+    no_log: true
+    when: __found_bios_grub_password.matched == 0
+  when:
+    - manage_204438 | bool
+    - ansible_facts.distribution_version is version('7.2', '>=')
+    - not __stat_sys_firmware_efi.stat.exists
+
+# RHEL-07-010491
+- name: Red Hat Enterprise Linux operating systems version 7.2 or newer using Unified Extensible Firmware Interface (UEFI) must require authentication upon booting into single-user and maintenance modes
+  block:
+  - name: Check if the grub superusers password is encrypted and set
+    ansible.builtin.find:
+      paths: /boot/efi/EFI/redhat/
+      patterns: user.cfg
+      contains: '(?i)GRUB2_PASSWORD=grub\.pbkdf2\.sha512\.'
+    register: __found_uefi_grub_password
+  - name: Set an encrypted grub superuser password
+    ansible.builtin.expect:
+      command: grub2-setpassword
+      responses:
+        "Enter password:":
+          - "{{ baseline_grub_superuser_password }}"
+        "Confirm password:":
+          - "{{ baseline_grub_superuser_password }}"
+    no_log: true
+    when: __found_uefi_grub_password.matched == 0
+  when:
+    - manage_204440 | bool
+    - ansible_facts.distribution_version is version('7.2', '>=')
+    - __stat_sys_firmware_efi.stat.exists
+
+# RHEL-07-020030
+- name: The Red Hat Enterprise Linux operating system must be configured so that a file integrity tool verifies the baseline operating system configuration at least weekly
+  ansible.builtin.cron:
+    cron_file: /etc/cron.daily/aide
+    special_time: daily
+    job: '/usr/sbin/aide --check | /bin/mail -s "$HOSTNAME - Daily AIDE integrity check run" {{ baseline_notifications_email_address }}'
+    state: present
+  when:
+    - manage_204445 | bool
+      or manage_204446 | bool
+    - "'aide' in ansible_facts.packages"
+    - "'cron' in ansible_facts.packages"
+    - "'mailx' in ansible_facts.packages"
+...

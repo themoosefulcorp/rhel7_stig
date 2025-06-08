@@ -1,0 +1,51 @@
+---
+# RHEL-07-010340
+- name: The Red Hat Enterprise Linux operating system must be configured so that users must provide a password for privilege escalation
+  block:
+  - name: Find drop-in sudoers files where nopasswd is set
+    ansible.builtin.find:
+      paths: /etc/sudoers.d/
+      contains: '(?i)NOPASSWD'
+      excludes: "{{ sudoers_custom_file | default(omit) }}"
+    register: __found_sudoers_nopasswd
+  - name: Comment lines in drop-in files allowing nopasswd
+    ansible.builtin.replace:
+      path: "{{ item.path }}"
+      regexp: '(?i)^(?!#).*NOPASSWD.*$'
+      replace: '# \g<0>'
+      validate: 'visudo -cf %s'
+    loop: "{{ __found_sudoers_nopasswd.files }}"
+    when: __found_sudoers_nopasswd.matched > 0
+  - name: Comment instances of nopasswd in main sudoers file
+    ansible.builtin.replace:
+      path: /etc/sudoers
+      regexp: '(?i)^(?!#).*NOPASSWD.*$'
+      replace: '# \g<0>'
+      validate: 'visudo -cf %s'
+  when: manage_204429 | bool
+
+# RHEL-07-010350
+- name: The Red Hat Enterprise Linux operating system must be configured so that users must re-authenticate for privilege escalation
+  block:
+  - name: Find drop-in sudoers files where re-authentication is not required
+    ansible.builtin.find:
+      paths: /etc/sudoers.d/
+      contains: '(?i)\!authenticate'
+      excludes: "{{ sudoers_custom_file | default(omit) }}"
+    register: __found_sudoers_noauthenticate
+  - name: Comment lines in drop-in files where re-authentication is not required
+    ansible.builtin.replace:
+      path: "{{ item.path }}"
+      regexp: '(?i)^(?!#).*\!authenticate.*$'
+      replace: '# \g<0>'
+      validate: 'visudo -cf %s'
+    loop: "{{ __found_sudoers_noauthenticate.files }}"
+    when: __found_sudoers_noauthenticate.matched > 0
+  - name: Comment instances of !authenticate in main sudoers file
+    ansible.builtin.replace:
+      path: /etc/sudoers
+      regexp: '(?i)^(?!#).*\!authenticate.*$'
+      replace: '# \g<0>'
+      validate: 'visudo -cf %s'
+  when: manage_204430 | bool
+...

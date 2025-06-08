@@ -1,0 +1,198 @@
+---
+- name: Backup current authconfig settings, just in case
+  ansible.builtin.command:
+    cmd: authconfig --savebackup=/root/authconfig-ansible-backup
+    creates: /root/authconfig-ansible-backup
+
+# RHEL-07-010118
+- name: The Red Hat Enterprise Linux operating system must be configured so that /etc/pam.d/passwd implements /etc/pam.d/system-auth when changing passwords
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/passwd
+    regexp: '(?i)^[#\s]*password\s+substack\s+system-auth'
+    line: 'password    substack    system-auth'
+    state: present
+  when: manage_204405 | bool
+
+# RHEL-07-010119
+- name: The Red Hat Enterprise Linux operating system must be configured so that when passwords are changed or new passwords are established, pwquality must be used
+  community.general.pamd:
+    name: system-auth
+    type: password
+    control: requisite
+    module_path: pam_pwquality.so
+    module_arguments: 'retry=3'
+    state: args_present
+  when: manage_204406 | bool
+
+# RHEL-07-010200
+- name: The Red Hat Enterprise Linux operating system must be configured so that the PAM system service is configured to store only encrypted representations of passwords
+  block:
+  - name: Set in system-auth
+    community.general.pamd:
+      name: system-auth
+      type: password
+      control: sufficient
+      module_path: pam_unix.so
+      module_arguments: SHA512
+      state: args_present
+  - name: Set in password-auth
+    community.general.pamd:
+      name: password-auth
+      type: password
+      control: sufficient
+      module_path: pam_unix.so
+      module_arguments: SHA512
+      state: args_present
+  when: manage_204415 | bool
+
+# RHEL-07-010270
+- name: The Red Hat Enterprise Linux operating system must be configured so that passwords are prohibited from reuse for a minimum of five generations
+  block:
+  - name: Set in system-auth
+    community.general.pamd:
+      name: system-auth
+      type: password
+      control: requisite
+      module_path: pam_pwhistory.so
+      module_arguments: 'remember=5'
+      state: args_present
+  - name: Set in password-auth
+    community.general.pamd:
+      name: password-auth
+      type: password
+      control: requisite
+      module_path: pam_pwhistory.so
+      module_arguments: 'remember=5'
+      state: args_present
+  when: manage_204422 | bool
+
+# RHEL-07-010290
+- name: The Red Hat Enterprise Linux operating system must not allow accounts configured with blank or null passwords
+  block:
+  - name: Set in system-auth
+    ansible.builtin.replace:
+      path: /etc/pam.d/system-auth
+      regexp: '(?i)nullok'
+      replace: ''
+  - name: Set in password-auth
+    ansible.builtin.replace:
+      path: /etc/pam.d/password-auth
+      regexp: '(?i)nullok'
+      replace: ''
+  when: manage_204424 | bool
+
+# RHEL-07-010320
+- name: The Red Hat Enterprise Linux operating system must be configured to lock accounts for a minimum of 15 minutes after three unsuccessful logon attempts within a 15-minute timeframe
+  block:
+  - name: Set arguments for auth required line in system-auth
+    community.general.pamd:
+      name: system-auth
+      type: auth
+      control: required
+      module_path: pam_faillock.so
+      module_arguments: 'deny=3 fail_interval=900 unlock_time=900'
+      state: args_present
+  - name: Set arguments for auth default line in system-auth
+    community.general.pamd:
+      name: system-auth
+      type: auth
+      control: '[default=die]'
+      module_path: pam_faillock.so
+      module_arguments: 'deny=3 fail_interval=900 unlock_time=900'
+      state: args_present
+  - name: Require system-auth to use faillock for accounts
+    community.general.pamd:
+      name: system-auth
+      type: account
+      control: required
+      module_path: pam_faillock.so
+      state: updated
+  - name: Set arguments for auth required line in password-auth
+    community.general.pamd:
+      name: password-auth
+      type: auth
+      control: required
+      module_path: pam_faillock.so
+      module_arguments: 'deny=3 fail_interval=900 unlock_time=900'
+      state: args_present
+  - name: Set arguments for auth default line in password-auth
+    community.general.pamd:
+      name: password-auth
+      type: auth
+      control: '[default=die]'
+      module_path: pam_faillock.so
+      module_arguments: 'deny=3 fail_interval=900 unlock_time=900'
+      state: args_present
+  - name: Require password-auth to use faillock for accounts
+    community.general.pamd:
+      name: password-auth
+      type: account
+      control: required
+      module_path: pam_faillock.so
+      state: updated
+  when: manage_204427 | bool
+
+# RHEL-07-010330
+- name: The Red Hat Enterprise Linux operating system must lock the associated account after three unsuccessful root logon attempts are made within a 15-minute period
+  block:
+  - name: Set arguments for auth required line in system-auth
+    community.general.pamd:
+      name: system-auth
+      type: auth
+      control: required
+      module_path: pam_faillock.so
+      module_arguments: 'even_deny_root'
+      state: args_present
+  - name: Set arguments for auth default line in system-auth
+    community.general.pamd:
+      name: system-auth
+      type: auth
+      control: '[default=die]'
+      module_path: pam_faillock.so
+      module_arguments: 'even_deny_root'
+      state: args_present
+  - name: Set arguments for auth required line in password-auth
+    community.general.pamd:
+      name: password-auth
+      type: auth
+      control: required
+      module_path: pam_faillock.so
+      module_arguments: 'even_deny_root'
+      state: args_present
+  - name: Set arguments for auth default line in password-auth
+    community.general.pamd:
+      name: password-auth
+      type: auth
+      control: '[default=die]'
+      module_path: pam_faillock.so
+      module_arguments: 'even_deny_root'
+      state: args_present
+  when: manage_204428 | bool
+
+# RHEL-07-010500
+- name: The Red Hat Enterprise Linux operating system must uniquely identify and must authenticate organizational users (or processes acting on behalf of organizational users) using multifactor authentication
+  block:
+  - name: Check current authconfig configuration
+    ansible.builtin.command:
+      cmd: authconfig --test
+    register: __result_authconfig_test
+    changed_when: false
+    check_mode: true
+  - name: Enable smartcard logins in authconfig
+    ansible.builtin.command:
+      cmd: authconfig --enablesmartcard --smartcardaction=0 --update
+    when: "'pam_pkcs11 is enabled' not in __result_authconfig_test.stdout"
+  - name: Require smart cards in authconfig
+    ansible.builtin.command:
+      cmd: authconfig --enablerequiresmartcard --update
+    when: "'smartcard module' not in __result_authconfig_test.stdout"
+  - name: Lock screen on smartcard removal
+    ansible.builtin.lineinfile:
+      path: /etc/pam_pkcs11/pkcs11_eventmgr.conf
+      regexp: '(?i)^[#\s]*/usr/X11R6/bin/xscreensaver-command'
+      line: '/usr/X11R6/bin/xscreensaver-command -lock'
+      state: present
+    when: "'smartcard removal action' not in __result_authconfig_test.stdout"
+  # - name: Modify the "/etc/pam_pkcs11/pam_pkcs11.conf" file to use the cackey module if required
+  when: manage_204441 | bool
+...

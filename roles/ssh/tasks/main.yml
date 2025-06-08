@@ -1,0 +1,31 @@
+---
+# RHEL-07-010300
+- name: The Red Hat Enterprise Linux operating system must be configured so that the SSH daemon does not allow authentication using an empty password
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '(?i)^[#\s]*PermitEmptyPasswords'
+    line: 'PermitEmptyPasswords no'
+    state: present
+  when: manage_204425 | bool
+  notify: sshd_restart
+
+# RHEL-07-010460
+- name: The Red Hat Enterprise Linux operating system must not allow users to override SSH environment variables
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '(?i)^[#\s]*PermitUserEnvironment'
+    line: 'PermitUserEnvironment no'
+    state: present
+  when: manage_204434 | bool
+  notify: sshd_restart
+
+# RHEL-07-010470
+- name: The Red Hat Enterprise Linux operating system must not allow a non-certificate trusted host SSH logon to the system
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '(?i)^[#\s]*HostbasedAuthentication'
+    line: 'HostbasedAuthentication no'
+    state: present
+  when: manage_204435 | bool
+  notify: sshd_restart
+...

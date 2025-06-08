@@ -1,0 +1,161 @@
+---
+- name: Only test password quality for users in /etc/passwd
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    line: 'local_users_only'
+    state: present
+  tags: qol
+
+# RHEL-07-010120
+- name: The Red Hat Enterprise Linux operating system must be configured so that when passwords are changed or new passwords are established, the new password must contain at least one upper-case character
+  block:
+  - name: Enable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*ucredit'
+      line: 'ucredit = -1'
+      state: present
+    when: manage_204407 | bool
+  - name: Disable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*ucredit'
+      state: absent
+    when: not manage_204407 | bool
+
+# RHEL-07-010130
+- name: The Red Hat Enterprise Linux operating system must be configured so that when passwords are changed or new passwords are established, the new password must contain at least one lower-case character
+  block:
+  - name: Enable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*lcredit'
+      line: 'lcredit = -1'
+      state: present
+    when: manage_204408 | bool
+  - name: Disable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*lcredit'
+      state: absent
+    when: not manage_204408 | bool
+
+# RHEL-07-010140
+- name: The Red Hat Enterprise Linux operating system must be configured so that when passwords are changed or new passwords are assigned, the new password must contain at least one numeric character
+  block:
+  - name: Enable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*dcredit'
+      line: 'dcredit = -1'
+      state: present
+    when: manage_204409 | bool
+  - name: Disable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*dcredit'
+      state: absent
+    when: not manage_204409 | bool
+
+# RHEL-07-010150
+- name: The Red Hat Enterprise Linux operating system must be configured so that when passwords are changed or new passwords are established, the new password must contain at least one special character
+  block:
+  - name: Enable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*ocredit'
+      line: 'ocredit = -1'
+      state: present
+    when: manage_204410 | bool
+  - name: Disable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*ocredit'
+      state: absent
+    when: not manage_204410 | bool
+
+# RHEL-07-010160
+- name: The Red Hat Enterprise Linux operating system must be configured so that when passwords are changed a minimum of eight of the total number of characters must be changed
+  block:
+  - name: Enable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*difok'
+      line: 'difok = 8'
+      state: present
+    when: manage_204411 | bool
+  - name: Disable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*difok'
+      state: absent
+    when: not manage_204411 | bool
+
+# RHEL-07-010170
+- name: The Red Hat Enterprise Linux operating system must be configured so that when passwords are changed a minimum of four character classes must be changed
+  block:
+  - name: Enable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*minclass'
+      line: 'minclass = 4'
+      state: present
+    when: manage_204412 | bool
+  - name: Disable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*minclass'
+      state: absent
+    when: not manage_204412 | bool
+
+# RHEL-07-010180
+- name: The Red Hat Enterprise Linux operating system must be configured so that when passwords are changed the number of repeating consecutive characters must not be more than three characters
+  block:
+  - name: Enable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*maxrepeat'
+      line: 'maxrepeat = 3'
+      state: present
+    when: manage_204413 | bool
+  - name: Disable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*maxrepeat'
+      state: absent
+    when: not manage_204413 | bool
+  
+# RHEL-07-010190
+- name: The Red Hat Enterprise Linux operating system must be configured so that when passwords are changed the number of repeating characters of the same character class must not be more than four characters
+  block:
+  - name: Enable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*maxclassrepeat'
+      line: 'maxclassrepeat = 4'
+      state: present
+    when: manage_204414 | bool
+  - name: Disable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*maxclassrepeat'
+      state: absent
+    when: not manage_204414 | bool
+
+# RHEL-07-010280
+- name: The Red Hat Enterprise Linux operating system must be configured so that passwords are a minimum of 15 characters in length
+  block:
+  - name: Enable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*minlen'
+      line: 'minlen = 15'
+      state: present
+    when: manage_204423 | bool
+  - name: Disable setting
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwquality.conf
+      regexp: '(?i)^[#\s]*minlen'
+      state: absent
+    when: not manage_204423 | bool
+...

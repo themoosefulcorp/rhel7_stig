@@ -1,0 +1,21 @@
+---
+baseline_grub_superuser_password: "{{ vault_grub_superuser_password | default('password') }}"
+baseline_notifications_email_address: "root@localhost"
+
+manage_204395: true
+manage_204416: true
+manage_204417: true
+manage_204418: true
+manage_204419: true
+manage_204420: true
+manage_204421: true
+manage_204426: true
+manage_204431: true
+manage_204437: true
+manage_204438: true
+manage_204440: true
+manage_204442: true
+manage_204443: true
+manage_204445: true
+manage_204446: true
+...

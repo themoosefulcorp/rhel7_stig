@@ -1,0 +1,6 @@
+---
+sudoers_custom_file: 99-ansible-managed
+
+manage_204429: true
+manage_204430: true
+...

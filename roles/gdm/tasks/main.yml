@@ -1,0 +1,164 @@
+---
+- name: Ensure the system database is using the local dconf profile
+  ansible.builtin.lineinfile:
+    path: /etc/dconf/profile/user
+    regexp: '(?i)^[#\s]*system-db'
+    line: 'system-db:local'
+    state: present
+  notify: dconf_update
+
+- name: Remove potentially conflicting values from prior configurations
+  ansible.builtin.include_tasks:
+    file: purge.yml
+  when: gdm_remove_prior_configurations | bool
+
+# RHEL-07-010030
+- name: The Red Hat Enterprise Linux operating system must display the Standard Mandatory DoD Notice and Consent Banner before granting local or remote access to the system via a graphical user logon
+  community.general.ini_file:
+    path: /etc/dconf/db/local.d/01-banner-message
+    section: org/gnome/login-screen
+    option: banner-message-enable
+    value: 'true'
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204393 | bool
+  notify: dconf_update
+
+# RHEL-07-010040
+- name: The Red Hat Enterprise Linux operating system must display the approved Standard Mandatory DoD Notice and Consent Banner before granting local or remote access to the system via a graphical user logon
+  community.general.ini_file:
+    path: /etc/dconf/db/local.d/01-banner-message
+    section: org/gnome/login-screen
+    option: banner-message-text
+    value: >
+      '''
+      You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only.
+      \nBy using this IS (which includes any device attached to this IS), you consent to the following conditions:
+      \n - The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to, penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE), and counterintelligence (CI) investigations.
+      \n - At any time, the USG may inspect and seize data stored on this IS.\n-Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception, and search, and may be disclosed or used for any USG-authorized purpose.
+      \n - This IS includes security measures (e.g., authentication and access controls) to protect USG interests -- not for your personal benefit or privacy.
+      \n - Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and confidential. See User Agreement for details.
+      '''
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204394 | bool
+  notify: dconf_update
+
+# RHEL-07-010060
+- name: The Red Hat Enterprise Linux operating system must enable a user session lock until that user re-establishes access using established identification and authentication procedures
+  community.general.ini_file:
+    path: /etc/dconf/db/local.d/00-screensaver
+    section: org/gnome/desktop/screensaver
+    option: lock-enabled
+    value: 'true'
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204396 | bool
+  notify: dconf_update
+
+# RHEL-07-010061
+- name: The Red Hat Enterprise Linux operating system must uniquely identify and must authenticate users using multifactor authentication via a graphical user logon
+  community.general.ini_file:
+    path: /etc/dconf/db/local.d/00-defaults
+    section: org/gnome/login-screen
+    option: enable-smartcard-authentication
+    value: 'true'
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204397 | bool
+  notify: dconf_update
+
+# RHEL-07-010070
+- name: The Red Hat Enterprise Linux operating system must initiate a screensaver after a 15-minute period of inactivity for graphical user interfaces
+  community.general.ini_file:
+    path: /etc/dconf/db/local.d/00-screensaver
+    section: org/gnome/desktop/session
+    option: idle-delay
+    value: 'uint32 900'
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204398 | bool
+  notify: dconf_update
+
+# RHEL-07-010081
+- name: The Red Hat Enterprise Linux operating system must prevent a user from overriding the screensaver lock-delay setting for the graphical user interface
+  ansible.builtin.lineinfile:
+    path: /etc/dconf/db/local.d/locks/session
+    line: '/org/gnome/desktop/screensaver/lock-delay'
+    state: present
+    create: true
+  when: manage_204399 | bool
+
+# RHEL-07-010082
+- name: The Red Hat Enterprise Linux operating system must prevent a user from overriding the session idle-delay setting for the graphical user interface
+  ansible.builtin.lineinfile:
+    path: /etc/dconf/db/local.d/locks/session
+    line: '/org/gnome/desktop/session/idle-delay'
+    state: present
+    create: true
+  when: manage_204400 | bool
+
+# RHEL-07-010100
+- name: The Red Hat Enterprise Linux operating system must initiate a session lock for the screensaver after a period of inactivity for graphical user interfaces
+  community.general.ini_file:
+    path: /etc/dconf/db/local.d/00-screensaver
+    section: org/gnome/desktop/screensaver
+    option: idle-activation-enabled
+    value: 'true'
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204402 | bool
+  notify: dconf_update
+
+# RHEL-07-010101
+- name: The Red Hat Enterprise Linux operating system must prevent a user from overriding the screensaver idle-activation-enabled setting for the graphical user interface
+  ansible.builtin.lineinfile:
+    path: /etc/dconf/db/local.d/locks/session
+    line: '/org/gnome/desktop/screensaver/idle-activation-enabled'
+    state: present
+    create: true
+  when: manage_204403 | bool
+
+# RHEL-07-010110
+- name: The Red Hat Enterprise Linux operating system must initiate a session lock for graphical user interfaces when the screensaver is activated
+  community.general.ini_file:
+    path: /etc/dconf/db/local.d/00-screensaver
+    section: org/gnome/desktop/screensaver
+    option: lock-delay
+    value: 'uint32 5'
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204404 | bool
+  notify: dconf_update
+
+# RHEL-07-010440
+- name: The Red Hat Enterprise Linux operating system must not allow an unattended or automatic logon to the system via a graphical user interface
+  community.general.ini_file:
+    path: /etc/gdm/custom.conf
+    section: daemon
+    option: AutomaticLoginEnable
+    value: 'false'
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204432 | bool
+
+# RHEL-07-010450
+- name: The Red Hat Enterprise Linux operating system must not allow an unrestricted logon to the system
+  community.general.ini_file:
+    path: /etc/gdm/custom.conf
+    section: daemon
+    option: TimedLoginEnable
+    value: 'false'
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204433 | bool
+...
