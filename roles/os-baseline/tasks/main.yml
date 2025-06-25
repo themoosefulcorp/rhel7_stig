@@ -27,9 +27,20 @@
     path: /sys/firmware/efi
   register: __stat_sys_firmware_efi
 
+- name: Configure YUM
+  ansible.builtin.include_role:
+    name: yum
+  tags: yum
+
 - name: Add and remove packages as required by STIGs
   ansible.builtin.include_tasks:
     file: packages.yml
+
+- name: Configure autofs if installed
+  ansible.builtin.include_role:
+    name: autofs
+  when: "'autofs' in ansible_facts.packages"
+  tags: autofs
 
 - name: STIG GDM if installed
   ansible.builtin.include_role:
@@ -37,11 +48,26 @@
   when: "'gdm' in ansible_facts.packages"
   tags: gdm
 
+- name: Configure SELinux
+  ansible.builtin.include_role:
+    name: selinux
+  tags: selinux
+
 # this definitely needs more testing before it's ready for production
 # - name: Configure authconfig
 #   ansible.builtin.include_role:
 #     name: authconfig
 #   tags: authconfig, pam
+
+- name: Configure users and groups
+  ansible.builtin.include_role:
+    name: user-accounts
+  tags: accounts
+
+- name: Configure file and directory permissions
+  ansible.builtin.include_role:
+    name: file-permissions
+  tags: permissions
 
 - name: Configure pwquality.conf
   ansible.builtin.include_role:
@@ -58,15 +84,15 @@
     name: sudoers
   tags: sudoers
 
-- name: Configure YUM
-  ansible.builtin.include_role:
-    name: yum
-  tags: yum
-
 - name: Configure modprobe
   ansible.builtin.include_role:
     name: modprobe
   tags: modprobe
+
+- name: Configure filesystem mounts
+  ansible.builtin.include_role:
+    name: fstab
+  tags: fstab, mount, mounts
 
 # RHEL-07-010050
 - name: The Red Hat Enterprise Linux operating system must display the Standard Mandatory DoD Notice and Consent Banner before granting local or remote access to the system via a command line user logon
@@ -241,17 +267,29 @@
     - ansible_facts.distribution_version is version('7.2', '>=')
     - __stat_sys_firmware_efi.stat.exists
 
-# RHEL-07-020030
-- name: The Red Hat Enterprise Linux operating system must be configured so that a file integrity tool verifies the baseline operating system configuration at least weekly
-  ansible.builtin.cron:
-    cron_file: /etc/cron.daily/aide
-    special_time: daily
-    job: '/usr/sbin/aide --check | /bin/mail -s "$HOSTNAME - Daily AIDE integrity check run" {{ baseline_notifications_email_address }}'
+# RHEL-07-020230
+- name: The Red Hat Enterprise Linux operating system must be configured so that the x86 Ctrl-Alt-Delete key sequence is disabled on the command line
+  ansible.builtin.systemd_service:
+    name: ctrl-alt-del.target
+    enabled: false
+    masked: true
+  when: manage_204455 | bool
+
+# RHEL-07-020240
+- name: The Red Hat Enterprise Linux operating system must define default permissions for all authenticated users in such a way that the user can only read and modify their own files
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '(?i)^[#\s]*UMASK'
+    line: 'UMASK 077'
     state: present
-  when:
-    - manage_204445 | bool
-      or manage_204446 | bool
-    - "'aide' in ansible_facts.packages"
-    - "'cron' in ansible_facts.packages"
-    - "'mailx' in ansible_facts.packages"
+  when: manage_204457 | bool
+
+# RHEL-07-020610
+- name: The Red Hat Enterprise Linux operating system must be configured so that all local interactive user accounts, upon creation, are assigned a home directory
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '(?i)^[#\s]*CREATE_HOME'
+    line: 'CREATE_HOME yes'
+    state: present
+  when: manage_204466 | bool 
 ...

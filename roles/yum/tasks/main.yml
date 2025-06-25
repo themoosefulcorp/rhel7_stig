@@ -16,4 +16,13 @@
     line: 'localpkg_gpgcheck=1'
     state: present
   when: manage_204448 | bool
+
+# RHEL-07-020200
+- name: The Red Hat Enterprise Linux operating system must remove all software components after updated versions have been installed
+  ansible.builtin.lineinfile:
+    path: /etc/yum.conf
+    regexp: '(?i)^[#\s]*clean_requirements_on_remove'
+    line: 'clean_requirements_on_remove=1'
+    state: present
+  when: manage_204452 | bool
 ...

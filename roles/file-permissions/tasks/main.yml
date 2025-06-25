@@ -1,0 +1,356 @@
+---
+# RHEL-07-020320
+- name: The Red Hat Enterprise Linux operating system must be configured so that all files and directories have a valid owner
+  block:
+  - name: Find files without a valid owner
+    ansible.builtin.command:
+      cmd: >
+        find / \( -path /dev -o -path /proc -o -path /run -o -path /sys \) -prune -o \( -type d -o -type f \) -nouser -print
+    register: __found_no_owner_files
+    changed_when: false
+    check_mode: false
+  - name: Set owner of returned files
+    ansible.builtin.file:
+      path: "{{ item }}"
+      owner: "{{ permissions_default_owner }}"
+    loop: "{{ __found_no_owner_files.stdout_lines }}"
+    when: __found_no_owner_files.stdout_lines | length > 0
+  when: manage_204463 | bool
+
+# RHEL-07-020330
+- name: The Red Hat Enterprise Linux operating system must be configured so that all files and directories have a valid group owner
+  block:
+  - name: Find files without a valid group
+    ansible.builtin.command:
+      cmd: >
+        find / \( -path /dev -o -path /proc -o -path /run -o -path /sys \) -prune -o \( -type d -o -type f \) -nogroup -print
+    register: __found_no_group_files
+    changed_when: false
+    check_mode: false
+  - name: Set group of returned files
+    ansible.builtin.file:
+      path: "{{ item }}"
+      group: "{{ permissions_default_group }}"
+    loop: "{{ __found_no_group_files.stdout_lines }}"
+    when: __found_no_group_files.stdout_lines | length > 0
+  when: manage_204464 | bool
+
+# RHEL-07-020630
+- name: The Red Hat Enterprise Linux operating system must be configured so that all local interactive user home directories have mode 0750 or less permissive
+  block:
+  - name: Get list of users in /etc/passwd
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when: ansible_facts.getent_passwd is not defined
+  - name: Set mode of user home directories
+    ansible.builtin.file:
+      path: "{{ item.value[4] }}"
+      mode: '0750'
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+    when:
+      - item.value[1] | int >= 1000
+      - item.value[4] != ''
+      - "'nologin' not in item.value[5]"
+  when: manage_204468 | bool
+
+# RHEL-07-020640
+- name: The Red Hat Enterprise Linux operating system must be configured so that all local interactive user home directories are owned by their respective users
+  block:
+  - name: Get list of users in /etc/passwd
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when: ansible_facts.getent_passwd is not defined
+  - name: Set owner of user home directories
+    ansible.builtin.file:
+      path: "{{ item.value[4] }}"
+      owner: "{{ item.value[1] }}"
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+    when:
+      - item.value[1] | int >= 1000
+      - item.value[4] != ''
+      - "'nologin' not in item.value[5]"
+  when: manage_204469 | bool
+
+# RHEL-07-020650
+- name: The Red Hat Enterprise Linux operating system must be configured so that all local interactive user home directories are group-owned by the home directory owners primary group
+  block:
+  - name: Get list of users in /etc/passwd
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when: ansible_facts.getent_passwd is not defined
+  # - name: Get list of users in /etc/group
+  #   ansible.builtin.getent:
+  #     database: group
+  #     split: ':'
+  #   when: ansible_facts.getent_group is not defined
+  # - name: Map usernames to their primary group
+  #   ansible.builtin.set_fact:
+  #     __mapped_username_to_primary_group: "{{ __mapped_username_to_primary_group | default([]) + item.value[2] | default(omit) }}"
+  #   loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+  #   when:
+  #     - item.value[1] | int >= 1000
+  #     - item.value[4] != ''
+  #     - "'nologin' not in item.value[5]"
+  - name: Set group-owner of user home directories
+    ansible.builtin.file:
+      path: "{{ item.value[4] }}"
+      group: "{{ item.value[2] }}"
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+    when:
+      - item.value[1] | int >= 1000
+      - item.value[4] != ''
+      - "'nologin' not in item.value[5]"
+  # - name: Set group-owner of user home directories  # elegant way
+  #   ansible.builtin.file:
+  #     path: "{{ item.value[4] }}"
+  #     group: "{{  }}"
+  #   loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+  #   when:
+  #     - item.value[1] | int >= 1000
+  #     - item.value[4] != ''
+  #     - "'nologin' not in item.value[5]"
+  when: manage_204470 | bool
+
+# RHEL-07-020660
+- name: The Red Hat Enterprise Linux operating system must be configured so that all files and directories contained in local interactive user home directories have a valid owner
+  block:
+  - name: Get list of users in /etc/passwd
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when: ansible_facts.getent_passwd is not defined
+  - name: Filter list of home directories to only interactive accounts
+    ansible.builtin.set_fact:
+      __list_interactive_home_directories: "{{ __list_interactive_home_directories | default([]) + [ item.value[4] ] }}"
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+    when:
+      - item.value[1] | int >= 1000
+      - item.value[4] != ''
+      - "'nologin' not in item.value[5]"
+  - name: Return list of ownerless files and directories in interactive user home directories
+    ansible.builtin.command:
+      cmd: >
+        find {{ item }} -xdev -o \( -type d -o -type f \) -nouser -print
+    register: __found_ownerless_home_directory_contents
+    changed_when: false
+    check_mode: false
+    loop: "{{ __list_interactive_home_directories }}"
+    when:
+      - __list_interactive_home_directories is defined
+      - __list_interactive_home_directories | length > 0
+  # - name: Set owner of ownerless files to match their respective home directory
+  #   ansible.builtin.file:
+  #     path: "{{ item }}"
+  #     owner: "{{ permissions_default_owner }}"
+  #   loop: __found_ownerless_home_directory_contents.stdout_lines | dirname
+  #   when:
+  #     - __found_ownerless_home_directory_contents is defined
+  #     - __found_ownerless_home_directory_contents.stdout_lines | length > 0
+  when: manage_204471 | bool
+
+# RHEL-07-020670
+# - name: The Red Hat Enterprise Linux operating system must be configured so that all files and directories contained in local interactive user home directories are group-owned by a group of which the home directory owner is a member
+#   block:
+#   - name: Get list of users in /etc/passwd
+#     ansible.builtin.getent:
+#       database: passwd
+#       split: ':'
+#     when: ansible_facts.getent_passwd is not defined
+#   - name: Initialize home directory list
+#     ansible.builtin.set_fact:
+#       __list_interactive_home_directories: []
+#   - name: Create list of home directories from contents of /etc/passwd
+#     ansible.builtin.set_fact:
+#       __list_interactive_home_directories: "{{ __list_interactive_home_directories + [ item.value[4] ] }}"
+#     loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+#     when:
+#       - item.value[1] | int >= 1000
+#       - item.value[4] != ''
+#       - "'nologin' not in item.value[5]"
+  # - name: Return list of group-less files and directories in user home directories
+  #   ansible.builtin.command:
+  #     cmd: >
+  #       find {{ item }} -xdev -o \( -type d -o -type f \) -nouser -print
+  #   register: __found_ownerless_home_directory_contents
+  #   changed_when: false
+  #   check_mode: false
+  #   loop: "{{ __list_interactive_home_directories }}"
+  #   when:
+  #     - __list_interactive_home_directories is defined
+  #     - __list_interactive_home_directories | length > 0
+  # when: manage_204472 | bool
+
+# RHEL-07-020680
+- name: The Red Hat Enterprise Linux operating system must be configured so that all files and directories contained in local interactive user home directories have a mode of 0750 or less permissive
+  block:
+  - name: Get list of users in /etc/passwd
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when: ansible_facts.getent_passwd is not defined
+  # - name: Initialize home directory list
+  #   ansible.builtin.set_fact:
+  #     __list_interactive_home_directories: []
+  # - name: Create list of home directories from contents of /etc/passwd
+  #   ansible.builtin.set_fact:
+  #     __list_interactive_home_directories: "{{ __list_interactive_home_directories + [ item.value[4] ] }}"
+  #   loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+  #   when:
+  #     - item.value[1] | int >= 1000
+  #     - item.value[4] != ''
+  #     - "'nologin' not in item.value[5]"
+  - name: Find files in user home directories
+    ansible.builtin.command:
+      cmd: >
+        find {{ item.value[4] }} -name \.* -prune -o \( -type d -o -type f \) -perm /027 -print
+      # find {{ item }} -xdev -name \.* -prune -o \( -type d -o -type f \) -perm /027 -print
+    register: __found_loose_home_directory_contents
+    changed_when: false
+    check_mode: false
+    # loop: "{{ __list_interactive_home_directories }}"
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+    # when:
+    #   - __list_interactive_home_directories is defined
+    #   - __list_interactive_home_directories | length > 0
+    when:
+      - item.value[1] | int >= 1000
+      - item.value[4] != ''
+      - "'nologin' not in item.value[5]"
+  - name: Set mode of files in user home directories
+    ansible.builtin.file:
+      path: "{{ item }}"
+      mode: '0750'
+    loop: "{{ __found_loose_home_directory_contents.stdout_lines }}"
+    when:
+      - __found_loose_home_directory_contents is defined
+      - __found_loose_home_directory_contents.stdout_lines | length > 0
+  when: manage_204473 | bool
+
+# RHEL-07-020690
+# - name: The Red Hat Enterprise Linux operating system must be configured so that all local initialization files for interactive users are owned by the home directory user or root
+#   block:
+#   - name: Get list of users in /etc/passwd
+#     ansible.builtin.getent:
+#       database: passwd
+#       split: ':'
+#     when: ansible_facts.getent_passwd is not defined
+#   - name: Initialize lists as facts
+#     ansible.builtin.set_fact:
+#       __list_passwd_users: []
+#       __list_interactive_home_directories: []
+#       __list_merged_users_and_home_directories: []
+#   - name: Populate lists
+#     block:
+#     - name: Create list of users from contents of /etc/passwd
+#       ansible.builtin.set_fact:
+#         __list_passwd_users: "{{ __list_passwd_users + [ item.key ] }}"
+#       loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+#     - name: Create list of home directories from contents of /etc/passwd
+#       ansible.builtin.set_fact:
+#         __list_interactive_home_directories: "{{ __list_interactive_home_directories + [ item.value[4] ] }}"
+#       loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+#     when:
+#       - item.value[1] | int >= 1000
+#       - item.value[4] != ''
+#       - "'nologin' not in item.value[5]"
+#   - name: Merge lists
+#     ansible.builtin.set_fact:
+#       __list_merged_users_and_home_directories: "{{ __list_merged_users_and_home_directories | zip([ __list_passwd_users, __list_interactive_home_directories ]) }}"
+#   when: manage_204474 | bool
+
+# RHEL-07-020700
+# - name: The Red Hat Enterprise Linux operating system must be configured so that all local initialization files for local interactive users are be group-owned by the users primary group or root
+#   block:
+#   - name: Get list of users in /etc/passwd
+#     ansible.builtin.getent:
+#       database: passwd
+#       split: ':'
+#     when: ansible_facts.getent_passwd is not defined
+#   - name: Get list of users in /etc/group
+#     ansible.builtin.getent:
+#       database: group
+#       split: ':'
+#     when: ansible_facts.getent_group is not defined
+#   - name: Find local initialization files in user home directories
+#     ansible.builtin.shell:
+#       cmd: >
+#         ls -1d {{ item.value[4] }}/.[^.]*
+#     register: __found_home_directory_initialization_files
+#     changed_when: false
+#     check_mode: false
+#     loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+#   - name: Create list of home directories with local initialization files
+#     ansible.builtin.set_fact:
+#       __list_home_directories_with_dotfiles: "{{ __list_home_directories_with_dotfiles | default([]) + item }}"
+#     loop: "{{ __found_home_directory_initialization_files | dirname }}"
+#     when:
+#       - __found_home_directory_initialization_files is defined
+#       - __found_home_directory_initialization_files.stdout_lines | length > 0
+#   - name: Match returned file base paths with the corresponding user name
+#     ansible.builtin.set_fact:
+#       __mapped_dotfiles_to_user:
+#         name: "{{  }}"
+#         home:
+#     with_subelements:
+#       - "{{ ansible_facts.getent_passwd | dict2items }}"
+#       -
+#     when:
+#       - __list_home_directories_with_dotfiles is defined
+#       - __list_home_directories_with_dotfiles | length > 0
+#     loop: "{{ __found_home_directory_initialization_files | dirname }}"
+#   when: manage_204475 | bool
+
+# RHEL-07-020710
+- name: The Red Hat Enterprise Linux operating system must be configured so that all local initialization files have mode 0740 or less permissive
+  block:
+  - name: Get list of users in /etc/passwd
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when: ansible_facts.getent_passwd is not defined
+  - name: Find local initialization files in user home directories
+    ansible.builtin.shell:
+      cmd: >
+        ls -1d {{ item.value[4] }}/.[^.]*
+    register: __found_home_directory_initialization_files
+    changed_when: false
+    check_mode: false
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+  - name: Set mode of returned home directory initialization files
+    ansible.builtin.file:
+      path: "{{ item.value[4] }}"
+      mode: '0740'
+    loop: "{{ __found_home_directory_initialization_files.stdout_lines }}"
+    when:
+      - __found_home_directory_initialization_files is defined
+      - __found_home_directory_initialization_files.stdout_lines | length > 0
+  when: manage_204476 | bool
+
+# RHEL-07-020720
+# - name: The Red Hat Enterprise Linux operating system must be configured so that all local interactive user initialization files executable search paths contain only paths that resolve to the users home directory
+#   when: manage_204477 | bool
+
+# RHEL-07-020730
+# - name: The Red Hat Enterprise Linux operating system must be configured so that local initialization files do not execute world-writable programs
+#   when: manage_204478 | bool
+
+# RHEL-07-021030
+# - name: The Red Hat Enterprise Linux operating system must be configured so that all world-writable directories are group-owned by root, sys, bin, or an application group
+#   block:
+#   - name: Get list of system partitions
+#   when: manage_204487 | bool
+
+# RHEL-07-021040
+- name: The Red Hat Enterprise Linux operating system must set the umask value to 077 for all local interactive user accounts
+  block:
+  - name: Get list of users in /etc/passwd
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when: ansible_facts.getent_passwd is not defined
+  - name: 
+  when: manage_204448 | bool
+...

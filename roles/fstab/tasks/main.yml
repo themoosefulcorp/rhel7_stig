@@ -1,0 +1,61 @@
+---
+- name: Gather minimum required subset of facts
+  ansible.builtin.setup:
+    gather_subset:
+      - '!all'
+      - mounts
+  when: ansible_facts.mounts is not defined
+
+# RHEL-07-021000
+# - name: The Red Hat Enterprise Linux operating system must be configured so that file systems containing user home directories are mounted to prevent files with the setuid and setgid bit set from being executed
+#   block:
+#   - name: Get list of users in /etc/passwd
+#     ansible.builtin.getent:
+#       database: passwd
+#       split: ':'
+#     when: ansible_facts.getent_passwd is not defined
+#   - name: Determine mount point of user home directories
+#   - name: Add suid flag to partitions containing user home directories
+#   when: manage_204480 | bool
+
+# RHEL-07-021010
+# - name: The Red Hat Enterprise Linux operating system must prevent files with the setuid and setgid bit set from being executed on file systems that are used with removable media
+#   block:
+#   when: manage_204481 | bool
+
+# RHEL-07-021020
+# - name: The Red Hat Enterprise Linux operating system must prevent files with the setuid and setgid bit set from being executed on file systems that are being imported via Network File System (NFS)
+#   block:
+#   - name: Get list of NFS filesystem mounts
+#     ansible.builtin.set_fact:
+#       __list_nfs_mounts: "{{ __list_nfs_mounts | default([]) + item.mount }}"
+#     loop: "{{ ansible_facts.mounts }}"
+#     when: item.fstype is match('nfs\d*')
+#   - name: Add nosuid to NFS mount options
+#   when: manage_204482 | bool
+
+# RHEL-07-021021
+# - name: The Red Hat Enterprise Linux operating system must prevent binary files from being executed on file systems that are being imported via Network File System (NFS)
+#   block:
+#   - name: Get list of NFS filesystem mounts
+#     ansible.builtin.set_fact:
+#       __list_nfs_mounts: "{{ __list_nfs_mounts | default([]) + item.mount }}"
+#     loop: "{{ ansible_facts.mounts }}"
+#     when: item.fstype is match('nfs\d*')
+#   - name: Add noexec to NFS mount options
+#   when: manage_204483 | bool
+
+# RHEL-07-021024
+# - name: The Red Hat Enterprise Linux operating system must mount /dev/shm with secure options
+#   block:
+#   - name: Get existing mount options of /dev/shm
+#     ansible.builtin.set_fact:
+#       __dev_shm_mount_options: "{{ lookup('dict', ansible_facts.mounts) }}"
+#     with_subelements:
+#       - "{{ ansible_facts.mounts }}"
+#       - 
+#   - name: Add nodev, nosuid, and noexec to /dev/shm mount options
+#   when: manage_204486 | bool
+
+
+...

@@ -1,0 +1,21 @@
+---
+permissions_default_owner: "root"
+permissions_default_group: "wheel"
+permissions_default_mode: '0750'
+
+manage_204463: true
+manage_204464: true
+manage_204468: true
+manage_204469: true
+manage_204470: false # revisit # involves linking group back to user
+manage_204471: false # revisit # involves linking home directory back to user
+manage_204472: false # revisit # reverse of subelements? idk im drunk
+manage_204473: true
+manage_204474: false # revisit # logic tied to 204475 and 204476
+manage_204475: false # revisit # logic tied to 204474 and 204476
+manage_204476: true
+manage_204477: false # revisit # im way too drunk to figure this one out
+manage_204478: false # revisit # im way too drunk to figure this one out
+manage_204487: false # revisit # im way too drunk to figure this one out
+manage_204488: true
+...

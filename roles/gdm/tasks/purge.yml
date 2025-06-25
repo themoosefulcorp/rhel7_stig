@@ -1,11 +1,12 @@
 ---
-- name: Remove banner-message-enable from files in /etc/dconf/db/local.d/
+- name: Remove banner-message-enable from files in /etc/dconf/db/
   block:
   - name: Find files with banner-message-enable set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/
+      paths: /etc/dconf/db/
       contains: '(?i)banner-message-enable'
       excludes: 01-banner-message
+      recurse: true
     register: __found_banner_message_enable
   - name: Purge instances of banner-message-enable
     community.general.ini_file:
@@ -18,13 +19,14 @@
     notify: dconf_update
   when: manage_204393 | bool
 
-- name: Remove banner-message-text from files in /etc/dconf/db/local.d/
+- name: Remove banner-message-text from files in /etc/dconf/db/
   block:
   - name: Find files with banner-message-text set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/
+      paths: /etc/dconf/db/
       contains: '(?i)banner-message-text'
       excludes: 01-banner-message
+      recurse: true
     register: __found_banner_message_text
   - name: Purge instances of banner-message-text
     community.general.ini_file:
@@ -37,13 +39,14 @@
     notify: dconf_update
   when: manage_204394 | bool
 
-- name: Remove lock-enabled from files in /etc/dconf/db/local.d/
+- name: Remove lock-enabled from files in /etc/dconf/db/
   block:
   - name: Find files with lock-enabled set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/
+      paths: /etc/dconf/db/
       contains: '(?i)lock-enabled'
       excludes: 00-screensaver
+      recurse: true
     register: __found_lock_enabled
   - name: Purge instances of lock-enabled
     community.general.ini_file:
@@ -56,13 +59,14 @@
     notify: dconf_update
   when: manage_204396 | bool
 
-- name: Remove enable-smartcard-authentication from files in /etc/dconf/db/local.d/
+- name: Remove enable-smartcard-authentication from files in /etc/dconf/db/
   block:
   - name: Find files with enable-smartcard-authentication set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/
+      paths: /etc/dconf/db/
       contains: '(?i)enable-smartcard-authentication'
       excludes: 00-defaults
+      recurse: true
     register: __found_enable_smartcard_authentication
   - name: Purge instances of enable-smartcard-authentication
     community.general.ini_file:
@@ -75,13 +79,14 @@
     notify: dconf_update
   when: manage_204397 | bool
 
-- name: Remove idle-delay from files in /etc/dconf/db/local.d/
+- name: Remove idle-delay from files in /etc/dconf/db/
   block:
   - name: Find files with idle-delay set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/
+      paths: /etc/dconf/db/
       contains: '(?i)idle-delay'
       excludes: 00-screensaver
+      recurse: true
     register: __found_idle_delay
   - name: Purge instances of idle-delay
     community.general.ini_file:
@@ -94,13 +99,14 @@
     notify: dconf_update
   when: manage_204398 | bool
 
-- name: Remove /org/gnome/desktop/screensaver/lock-delay from files in /etc/dconf/db/local.d/locks/
+- name: Remove /org/gnome/desktop/screensaver/lock-delay from files in /etc/dconf/db/locks/
   block:
   - name: Find files with /org/gnome/desktop/screensaver/lock-delay set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/locks/
+      paths: /etc/dconf/db/locks/
       contains: '(?i)/org/gnome/desktop/screensaver/lock-delay'
       excludes: session
+      recurse: true
     register: __found_lock_delay_lock
   - name: Purge instances of /org/gnome/desktop/screensaver/lock-delay
     ansible.builtin.lineinfile:
@@ -111,13 +117,14 @@
     when: __found_lock_delay_lock.matched > 0
   when: manage_204399 | bool
 
-- name: Remove /org/gnome/desktop/session/idle-delay from files in /etc/dconf/db/local.d/locks/
+- name: Remove /org/gnome/desktop/session/idle-delay from files in /etc/dconf/db/locks/
   block:
   - name: Find files with /org/gnome/desktop/session/idle-delay set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/locks/
+      paths: /etc/dconf/db/locks/
       contains: '(?i)/org/gnome/desktop/session/idle-delay'
       excludes: session
+      recurse: true
     register: __found_idle_delay_lock
   - name: Purge instances of /org/gnome/desktop/session/idle-delay
     ansible.builtin.lineinfile:
@@ -128,13 +135,14 @@
     when: __found_idle_delay_lock.matched > 0
   when: manage_204400 | bool
 
-- name: Remove idle-activation-enabled from files in /etc/dconf/db/local.d/
+- name: Remove idle-activation-enabled from files in /etc/dconf/db/
   block:
   - name: Find files with idle-activation-enabled set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/
+      paths: /etc/dconf/db/
       contains: '(?i)idle-activation-enabled'
       excludes: 00-screensaver
+      recurse: true
     register: __found_idle_activation_enabled
   - name: Purge instances of idle-activation-enabled
     community.general.ini_file:
@@ -147,13 +155,14 @@
     notify: dconf_update
   when: manage_204402 | bool
 
-- name: Remove /org/gnome/desktop/screensaver/idle-activation-enabled from files in /etc/dconf/db/local.d/locks/
+- name: Remove /org/gnome/desktop/screensaver/idle-activation-enabled from files in /etc/dconf/db/locks/
   block:
   - name: Find files with /org/gnome/desktop/screensaver/idle-activation-enabled set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/locks/
+      paths: /etc/dconf/db/locks/
       contains: '(?i)/org/gnome/desktop/screensaver/idle-activation-enabled'
       excludes: session
+      recurse: true
     register: __found_idle_activation_enabled_lock
   - name: Purge instances of /org/gnome/desktop/screensaver/idle-activation-enabled
     ansible.builtin.lineinfile:
@@ -164,13 +173,14 @@
     when: __found_idle_activation_enabled_lock.matched > 0
   when: manage_204403 | bool
 
-- name: Remove lock-delay from files in /etc/dconf/db/local.d/
+- name: Remove lock-delay from files in /etc/dconf/db/
   block:
   - name: Find files with lock-delay set
     ansible.builtin.find:
-      paths: /etc/dconf/db/local.d/
+      paths: /etc/dconf/db/
       contains: '(?i)lock-delay'
       excludes: 00-screensaver
+      recurse: true
     register: __found_lock_delay
   - name: Purge instances of lock-delay
     community.general.ini_file:
@@ -218,4 +228,24 @@
     loop: "{{ __found_timed_login_enable.files }}"
     when: __found_timed_login_enable.matched > 0
   when: manage_204433 | bool
+
+- name: Remove logout from files in /etc/dconf/db/
+  block:
+  - name: Find files with logout set
+    ansible.builtin.find:
+      paths: /etc/dconf/db/
+      contains: '(?i)logout'
+      excludes: 00-disable-CAD
+      recurse: true
+    register: __found_logout
+  - name: Purge instances of logout
+    community.general.ini_file:
+      path: "{{ item.path }}"
+      section: org/gnome/settings-daemon/plugins/media-keys
+      option: logout
+      state: absent
+    loop: "{{ __found_logout.files }}"
+    when: __found_logout.matched > 0
+    notify: dconf_update
+  when: manage_204456 | bool
 ...

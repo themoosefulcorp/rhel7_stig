@@ -1,0 +1,15 @@
+---
+# RHEL-07-020030
+- name: The Red Hat Enterprise Linux operating system must be configured so that a file integrity tool verifies the baseline operating system configuration at least weekly
+  ansible.builtin.cron:
+    cron_file: /etc/cron.daily/aide
+    special_time: daily
+    job: '/usr/sbin/aide --check | /bin/mail -s "$HOSTNAME - Daily AIDE integrity check run" {{ cron_notifications_email_address }}'
+    state: present
+  when:
+    - manage_204445 | bool
+      or manage_204446 | bool
+    - "'aide' in ansible_facts.packages"
+    - "'cron' in ansible_facts.packages"
+    - "'mailx' in ansible_facts.packages"
+...

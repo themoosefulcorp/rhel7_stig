@@ -1,2 +1,39 @@
 ---
+# RHEL-07-020100
+- name: The Red Hat Enterprise Linux operating system must be configured to disable USB mass storage
+  block:
+  - name: Disable installation of usb-storage kernel module
+    ansible.builtin.lineinfile:
+      path: /etc/modprobe.d/usb-storage.conf
+      regexp: '(?i)^[#\s]*install\s+usb-storage'
+      line: 'install usb-storage /bin/false'
+      state: present
+      create: true
+  - name: Configure the operating system to disable the ability to use USB mass storage devices
+    ansible.builtin.lineinfile:
+      path: /etc/modprobe.d/blacklist.conf
+      regexp: '(?i)^[#\s]*blacklist\s+usb-storage'
+      line: 'blacklist usb-storage'
+      state: present
+      create: true
+  when: manage_204449 | bool
+
+# RHEL-07-020101
+- name: The Red Hat Enterprise Linux operating system must be configured so that the Datagram Congestion Control Protocol (DCCP) kernel module is disabled unless required
+  block:
+  - name: Disable installation of DCCP kernel module
+    ansible.builtin.lineinfile:
+      path: /etc/modprobe.d/dccp.conf
+      regexp: '(?i)^[#\s]*install\s+dccp'
+      line: 'install dccp /bin/false'
+      state: present
+      create: true
+  - name: Ensure that the DCCP module is blacklisted
+    ansible.builtin.lineinfile:
+      path: /etc/modprobe.d/blacklist.conf
+      regexp: '(?i)^[#\s]*blacklist\s+dccp'
+      line: 'blacklist dccp'
+      state: present
+      create: true
+  when: manage_204450 | bool
 ...

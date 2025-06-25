@@ -1,0 +1,24 @@
+---
+# - name: Install pre-requisite packages
+#   ansible.builtin.package:
+#     name:
+#       - libselinux
+#       - policycoreutils
+#       - python3-libselinux
+#       - python3-policycoreutils
+#       - selinux-policy
+#       - selinux-policy-devel
+#       - selinux-policy-doc
+#       - selinux-policy-minimum
+#       - selinux-policy-sandbox
+#       - selinux-policy-targeted
+#     state: present
+
+# RHEL-07-020210
+- name: The Red Hat Enterprise Linux operating system must enable SELinux
+  ansible.posix.selinux:
+    policy: "{{ selinux_policy }}"
+    state: enforcing
+  when: manage_204453 | bool
+  notify: system_reboot
+...

@@ -1,0 +1,23 @@
+---
+# accounts_create_group:
+#   - name: example-group
+#     gid: 1001
+
+# accounts_create_user:
+#   - name: example-user
+#     uid: 1000
+#     groups: "wheel, docker"
+#     system_account: false
+#     create_home: true
+
+# accounts_remove_group:
+#   - name: example-group
+
+# accounts_remove_user:
+#   - name: example-user
+
+
+manage_204460: true
+manage_204462: true
+manage_204467: true
+...

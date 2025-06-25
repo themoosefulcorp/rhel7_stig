@@ -1,4 +1,11 @@
 ---
+# RHEL-07-020260
+- name: The Red Hat Enterprise Linux operating system security patches and updates must be installed and up to date
+  ansible.builtin.package:
+    name: '*'
+    state: latest
+  when: manage_204459 | bool
+
 # RHEL-07-020000
 - name: The Red Hat Enterprise Linux operating system must not have the rsh-server package installed
   ansible.builtin.package:

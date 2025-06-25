@@ -1,0 +1,13 @@
+---
+# - name: reboot_localhost
+#   listen: system_reboot
+
+# - name: reboot_remote
+#   listen: system_reboot
+
+- name: system_reboot
+  ansible.builtin.reboot:
+    msg: "Rebooting in 15 seconds"
+    pre_reboot_delay: 15
+  ignore_errors: true
+...

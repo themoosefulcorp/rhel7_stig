@@ -1,0 +1,6 @@
+---
+cron_notifications_email_address: "root@localhost"
+
+manage_204445: true
+manage_204446: true
+...

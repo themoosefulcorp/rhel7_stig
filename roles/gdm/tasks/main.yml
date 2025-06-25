@@ -161,4 +161,17 @@
     state: present
     create: true
   when: manage_204433 | bool
+
+  # RHEL-07-020231
+- name: The Red Hat Enterprise Linux operating system must be configured so that the x86 Ctrl-Alt-Delete key sequence is disabled in the Graphical User Interface
+  community.general.ini_file:
+    path: /etc/dconf/db/local.d/00-disable-CAD
+    section: org/gnome/settings-daemon/plugins/media-keys
+    option: logout
+    # going off of memory, check this
+    value: ''''''
+    no_extra_spaces: true
+    state: present
+    create: true
+  when: manage_204456 | bool
 ...

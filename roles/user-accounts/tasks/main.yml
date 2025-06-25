@@ -1,0 +1,107 @@
+---
+- name: Create required user groups
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid | default(omit) }}"
+    state: present
+  loop: "{{ accounts_create_group | dict2items }}"
+  when:
+    - accounts_create_group is defined
+    - accounts_create_group | length > 0
+  tags: groups
+
+- name: Create required user accounts
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    uid: "{{ item.uid | default(omit) }}"
+    groups: "{{ item.groups | default(omit) }}"
+    system: "{{ item.system_account | default (omit) }}"
+    create_home: "{{ item.create_home | default(omit) }}"
+    state: present
+  loop: "{{ accounts_create_user | dict2items }}"
+  when:
+    - accounts_create_user is defined
+    - accounts_create_user | length > 0
+  tags: users
+
+- name: Remove unwanted user groups
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    state: absent
+  loop: "{{ accounts_remove_group | dict2items }}"
+  when:
+    - accounts_remove_group is defined
+    - accounts_remove_group | length > 0
+  tags: groups
+
+# RHEL-07-020270
+- name: The Red Hat Enterprise Linux operating system must not have unnecessary accounts
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    state: absent
+  loop: "{{ accounts_remove_user | dict2items }}"
+  when:
+    - manage_204460 | bool
+    - accounts_remove_user is defined
+    - accounts_remove_user | length > 0
+  tags: users
+
+# RHEL-07-020310
+- name: The Red Hat Enterprise Linux operating system must be configured so that the root account must be the only account having unrestricted access to the system
+  block:
+  - name: Get list of users in /etc/passwd
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when: ansible_facts.getent_passwd is not defined
+  - name: Lock accounts with a UID of 0 that are not root
+    ansible.builtin.user:
+      name: "{{ item.key }}"
+      password_lock: true
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+    when:
+      - item.value[1] == 0
+      - item.key is not match('root')
+  when: manage_204462 | bool
+
+# RHEL-07-020620
+- name: The Red Hat Enterprise Linux operating system must be configured so that all local interactive users have a home directory assigned and defined in the /etc/passwd file
+  block:
+  - name: Get list of users in /etc/passwd
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when: ansible_facts.getent_passwd is not defined
+  - name: Create user home directory
+    ansible.builtin.file:
+      path: "/home/{{ item.key }}"
+      owner: "{{ item.value[1] }}"
+      group: "{{ item.value[2] }}"
+      mode: '0750'
+      state: directory
+    register: __task_create_home_directory
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+    when:
+      - item.value[1] >= 1000
+      - item.value[4] == ''
+      - item.value[5] is not match('/sbin/nologin')
+  - name: Assign home directory to user
+    ansible.builtin.user:
+      name: "{{ item.key }}"
+      home: "/home/{{ item.key }}"
+    register: __task_assign_home_directory
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+    when:
+      - item.value[1] >= 1000
+      - item.value[4] == ''
+      - item.value[5] is not match('/sbin/nologin')
+  - name: Force a refresh of /etc/passwd content fact
+    ansible.builtin.getent:
+      database: passwd
+      split: ':'
+    when:
+      - ( __task_create_home_directory is defined and __task_create_home_directory is changed )
+        or
+        ( __task_assign_home_directory is defined and __task_assign_home_directory is changed )
+  when: manage_204467 | bool
+...
