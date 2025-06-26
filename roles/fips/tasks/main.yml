@@ -1,0 +1,48 @@
+---
+# RHEL-07-021350
+- name: >
+    The Red Hat Enterprise Linux operating system must implement NIST FIPS-validated cryptography for the following: to provision digital signatures, to generate cryptographic hashes, and to protect data requiring data-at-rest protections in accordance with applicable federal laws, Executive Orders, directives, policies, regulations, and standards
+  block:
+  - name: Install the dracut-fips package
+    ansible.builtin.package:
+      name: dracut-fips
+      state: present
+    notify: dracut_regenerate
+  - name: Check if system uses BIOS or UEFI
+    ansible.builtin.stat:
+      path: /sys/firmware/efi
+    register: __stat_sys_firmware_efi
+  - name: Modify the grub configuration file variable when EFI is in use
+    ansible.builtin.set_fact:
+      __grub_config_file: "/boot/efi/EFI/redhat/grub.cfg"
+    when: __stat_sys_firmware_efi.stat.exists
+  - name: Figure out if FIPS is configured in /etc/default/grub
+    ansible.builtin.find:
+      paths: /etc/default/
+      patterns: "grub"
+      contains: '(?i)fips'
+    register: __found_fips_etc_default_grub
+  - name: Enable FIPS if it is explicitly disabled
+    ansible.builtin.replace:
+      path: /etc/default/grub
+      regexp: '(?i)fips\s*=\s*0'
+      replace: 'fips=1'
+    when: __found_fips_etc_default_grub.matched > 0
+    notify: grub_mkconfig
+  - name: Enable FIPS if it is missing from the kernel parameters
+    ansible.builtin.lineinfile:
+      path: /etc/default/grub
+      regexp: '(?i)^[#\s]*GRUB_CMDLINE_LINUX="(.*)"$'
+      line: 'GRUB_CMDLINE_LINUX="\g<1> fips=1"'
+      backrefs: true
+      state: present
+    when: __found_fips_etc_default_grub.matched == 0
+    notify: grub_mkconfig
+  - name: Ensure /etc/system-fips exists
+    ansible.builtin.file:
+      path: /etc/system-fips
+      access_time: preserve
+      modification_time: preserve
+      state: touch
+  when: manage_204497 | bool
+...

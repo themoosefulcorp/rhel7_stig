@@ -331,6 +331,22 @@
 
 # RHEL-07-020720
 # - name: The Red Hat Enterprise Linux operating system must be configured so that all local interactive user initialization files executable search paths contain only paths that resolve to the users home directory
+#   block:
+#   - name: Get list of users in /etc/passwd
+#     ansible.builtin.getent:
+#       database: passwd
+#       split: ':'
+#     when: ansible_facts.getent_passwd is not defined
+#   - name: Find initialization files where path is defined
+#     ansible.builtin.find:
+#       paths: "{{ item.value[4] }}"
+#       contains: '(?i)PATH'
+#       patterns: '^\..*'
+#       excludes: '\.bash_history'
+#       use_regex: true
+#       recurse: false
+#     register: __found_path_initialization_files
+#     loop: "{{ ansible_facts.getent_passwd | dict2items }}"
 #   when: manage_204477 | bool
 
 # RHEL-07-020730
@@ -351,6 +367,22 @@
       database: passwd
       split: ':'
     when: ansible_facts.getent_passwd is not defined
-  - name: 
+  - name: Find initialization files where umask is defined
+    ansible.builtin.find:
+      paths: "{{ item.value[4] }}"
+      contains: '(?i)UMASK'
+      patterns: '^\..*'
+      excludes: '\.bash_history'
+      use_regex: true
+      recurse: false
+    register: __found_umask_initialization_files
+    loop: "{{ ansible_facts.getent_passwd | dict2items }}"
+  - name: Set umask in initialization files
+    ansible.builtin.replace:
+      path: "{{ item.path }}"
+      regexp: 'umask\s+(\d{1,2})(([0-6]|[8-9])|7)(([0-6]|[8-9])|7)'
+      replace: 'umask \g<1>77'
+    loop: "{{ __found_umask_initialization_files.files }}"
+    when: __found_umask_initialization_files.matched > 0
   when: manage_204448 | bool
 ...

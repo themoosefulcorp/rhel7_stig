@@ -1,0 +1,143 @@
+---
+- name: Install prerequisite packages
+  ansible.builtin.package:
+    name: auditd
+    state: present
+
+- name: Copy audit.rules file from template
+  ansible.builtin.template:
+    src: audit.rules.j2
+    dest: /etc/audit/rules.d/audit.rules
+  notify: auditd_restart
+
+# RHEL-07-030000
+- name: The Red Hat Enterprise Linux operating system must be configured so that auditing is configured to produce records containing information to establish what type of events occurred, where the events occurred, the source of the events, and the outcome of the events. These audit records must also identify individual identities of group account users
+  ansible.builtin.systemd_service:
+    name: auditd
+    enabled: true
+    state: started
+  when: manage_204503 | bool
+
+# RHEL-07-030201
+- name: The Red Hat Enterprise Linux operating system must be configured to off-load audit logs onto a different system or storage media from the system being audited
+  block:
+  - name: Set active to yes
+    ansible.builtin.lineinfile:
+      path: /etc/audisp/plugins.d/au-remote.conf
+      regexp: '(?i)^[#\s]*active\s+='
+      line: 'active = yes'
+      state: present
+    notify: auditd_restart
+  - name: Set direction to out
+    ansible.builtin.lineinfile:
+      path: /etc/audisp/plugins.d/au-remote.conf
+      regexp: '(?i)^[#\s]*direction\s+='
+      line: 'direction = out'
+      state: present
+    notify: auditd_restart
+  - name: Set binary path
+    ansible.builtin.lineinfile:
+      path: /etc/audisp/plugins.d/au-remote.conf
+      regexp: '(?i)^[#\s]*path\s+='
+      line: 'path = /sbin/audisp-remote'
+      state: present
+    notify: auditd_restart
+  - name: Set type to always
+    ansible.builtin.lineinfile:
+      path: /etc/audisp/plugins.d/au-remote.conf
+      regexp: '(?i)^[#\s]*type\s+='
+      line: 'type = always'
+      state: present
+    notify: auditd_restart
+  when: manage_204506 | bool
+
+# RHEL-07-030210
+- name: The Red Hat Enterprise Linux operating system must take appropriate action when the remote logging buffer is full
+  ansible.builtin.lineinfile:
+    path: /etc/audisp/audispd.conf
+    regexp: '(?i)^[#\s]*overflow_action\s+='
+    line: 'overflow_action = syslog'
+    state: present
+  when: manage_204507 | bool
+  notify: auditd_restart
+
+# RHEL-07-030211
+- name: The Red Hat Enterprise Linux operating system must label all off-loaded audit logs before sending them to the central log server
+  ansible.builtin.lineinfile:
+    path: /etc/audisp/audispd.conf
+    regexp: '(?i)^[#\s]*name_format\s+='
+    line: 'name_format = hostname'
+    state: present
+  when: manage_204508 | bool
+  notify: auditd_restart
+
+# RHEL-07-030300
+- name: The Red Hat Enterprise Linux operating system must off-load audit records onto a different system or media from the system being audited
+  ansible.builtin.lineinfile:
+    path: /etc/audisp/audisp-remote.conf
+    regexp: '(?i)^[#\s]*remote_server\s+='
+    line: 'remote_server = {{ auditd_log_aggregation_server }}'
+    state: present
+  when: manage_204509 | bool
+  notify: auditd_restart
+
+# RHEL-07-030310
+- name: The Red Hat Enterprise Linux operating system must encrypt the transfer of audit records off-loaded onto a different system or media from the system being audited
+  ansible.builtin.lineinfile:
+    path: /etc/audisp/audisp-remote.conf
+    regexp: '(?i)^[#\s]*enable_krb5\s+='
+    line: 'enable_krb5 = yes'
+    state: present
+  when: manage_204510 | bool
+  notify: auditd_restart
+
+# RHEL-07-030320
+- name: The Red Hat Enterprise Linux operating system must be configured so that the audit system takes appropriate action when the audit storage volume is full
+  ansible.builtin.lineinfile:
+    path: /etc/audisp/audisp-remote.conf
+    regexp: '(?i)^[#\s]*disk_full_action\s+='
+    line: 'disk_full_action = single'
+    state: present
+  when: manage_204511 | bool
+  notify: auditd_restart
+
+# RHEL-07-030321
+- name: The Red Hat Enterprise Linux operating system must be configured so that the audit system takes appropriate action when there is an error sending audit records to a remote system
+  ansible.builtin.lineinfile:
+    path: /etc/audisp/audisp-remote.conf
+    regexp: '(?i)^[#\s]*network_failure_action\s+='
+    line: 'network_failure_action = syslog'
+    state: present
+  when: manage_204512 | bool
+  notify: auditd_restart
+
+# RHEL-07-030330
+- name: The Red Hat Enterprise Linux operating system must initiate an action to notify the System Administrator (SA) and Information System Security Officer ISSO, at a minimum, when allocated audit record storage volume reaches 75% of the repository maximum audit record storage capacity
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '(?i)^[#\s]*space_left\s+='
+    line: 'space_left = 25%'
+    state: present
+  when: manage_204513 | bool
+  notify: auditd_restart
+
+# RHEL-07-030340
+- name: The Red Hat Enterprise Linux operating system must immediately notify the System Administrator (SA) and Information System Security Officer (ISSO) (at a minimum) via email when the threshold for the repository maximum audit record storage capacity is reached
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '(?i)^[#\s]*space_left_action\s+='
+    line: 'space_left_action = email'
+    state: present
+  when: manage_204514 | bool
+  notify: auditd_restart
+
+# RHEL-07-030350
+- name: The Red Hat Enterprise Linux operating system must immediately notify the System Administrator (SA) and Information System Security Officer (ISSO) (at a minimum) when the threshold for the repository maximum audit record storage capacity is reached
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '(?i)^[#\s]*action_mail_acct\s+='
+    line: 'action_mail_acct = {{ auditd_action_email_account }}'
+    state: present
+  when: manage_204515 | bool
+  notify: auditd_restart
+...

@@ -1,0 +1,9 @@
+---
+- name: dracut_regenerate
+  ansible.builtin.command:
+    cmd: dracut -f
+
+- name: grub_mkconfig
+  ansible.builtin.command:
+    cmd: grub2-mkconfig -o {{ __grub_config_file }}
+...

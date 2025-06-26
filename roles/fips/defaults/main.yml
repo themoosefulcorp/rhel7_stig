@@ -1,0 +1,5 @@
+---
+__grub_config_file: "/boot/grub2/grub.cfg"
+
+manage_204497: true
+...

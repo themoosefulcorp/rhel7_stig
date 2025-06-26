@@ -1,4 +1,9 @@
 ---
+- name: Install prerequisite packages
+  ansible.builtin.package:
+    name: cron
+    state: present
+
 # RHEL-07-020030
 - name: The Red Hat Enterprise Linux operating system must be configured so that a file integrity tool verifies the baseline operating system configuration at least weekly
   ansible.builtin.cron:
@@ -10,6 +15,21 @@
     - manage_204445 | bool
       or manage_204446 | bool
     - "'aide' in ansible_facts.packages"
-    - "'cron' in ansible_facts.packages"
     - "'mailx' in ansible_facts.packages"
+
+# RHEL-07-021110
+- name: The Red Hat Enterprise Linux operating system must be configured so that the cron.allow file, if it exists, is owned by root
+  ansible.builtin.file:
+    path: /etc/cron.allow
+    owner: root
+    state: file
+  when: manage_204490 | bool
+
+# RHEL-07-021120
+- name: The Red Hat Enterprise Linux operating system must be configured so that the cron.allow file, if it exists, is group-owned by root
+  ansible.builtin.file:
+    path: /etc/cron.allow
+    group: root
+    state: file
+  when: manage_204491 | bool
 ...

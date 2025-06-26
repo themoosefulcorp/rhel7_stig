@@ -1,0 +1,17 @@
+---
+auditd_log_aggregation_server: "192.168.0.69"
+auditd_action_email_account: "root"
+
+manage_204503: true
+manage_204504: true
+manage_204506: true
+manage_204507: true
+manage_204508: true
+manage_204509: true
+manage_204510: true
+manage_204511: true
+manage_204512: true
+manage_204513: true
+manage_204514: true
+manage_204515: true
+...

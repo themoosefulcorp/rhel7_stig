@@ -1,0 +1,39 @@
+---
+- name: Install prerequisite packages
+  ansible.builtin.package:
+    name: rsyslog
+    state: present
+
+# RHEL-07-021100
+- name: The Red Hat Enterprise Linux operating system must have cron logging implemented
+  block:
+  - name: Find drop-in rsyslog config files where cron is configured
+    ansible.builtin.find:
+      paths: /etc/rsyslog.d/
+      contains: '(?i)cron\.\*'
+      patterns: '*.conf'
+      excludes: "{{ rsyslog_custom_file | default(omit) }}"
+    register: __found_cron_rsyslog_confd_files
+  - name: Remove conflicting lines configuring cron in drop-in files
+    ansible.builtin.lineinfile:
+      path: "{{ item.path }}"
+      regexp: '(?i)cron\.\*'
+      state: absent
+    loop: "{{ __found_cron_rsyslog_confd_files.files }}"
+    when: __found_cron_rsyslog_confd_files.matched > 0
+    notify: rsyslog_restart
+  - name: Remove conflicting lines from main rsyslog config file
+    ansible.builtin.lineinfile:
+      path: /etc/rsyslog.conf
+      regexp: '(?i)cron\.\*'
+      state: absent
+    notify: rsyslog_restart
+  - name: Add cron logging line to custom rsyslog config file
+    ansible.builtin.lineinfile:
+      path: "/etc/rsyslog.d/{{ rsyslog_custom_file }}.conf"
+      regexp: '(?i)^[#\s]*cron\.\*\s+\w*'
+      line: 'cron.* /var/log/cron'
+      state: present
+    notify: rsyslog_restart
+  when: manage_204489 | bool
+...

@@ -20,6 +20,13 @@
     state: absent
   when: manage_204443 | bool
 
+# RHEL-07-021710
+- name: The Red Hat Enterprise Linux operating system must not have the telnet-server package installed
+  ansible.builtin.package:
+    name: telnet-server
+    state: absent
+  when: manage_204502 | bool
+
 - name: Update package facts
   ansible.builtin.package_facts:
     manager: auto

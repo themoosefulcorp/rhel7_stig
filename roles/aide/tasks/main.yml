@@ -1,0 +1,11 @@
+---
+- name: Install prerequisite packages
+  ansible.builtin.package:
+    name: aide
+    state: present
+
+- name: Create aide.conf from template
+  ansible.builtin.template:
+    src: aide.conf.j2
+    dest: /etc/aide.conf
+...

@@ -1,0 +1,5 @@
+---
+rsyslog_custom_file: "99-ansible-managed"
+
+manage_204489: true
+...
